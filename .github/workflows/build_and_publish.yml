@@ -38,27 +38,49 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 17
+      # AGP 9.1.1 requires JDK 21
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Gradle
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses & Install Platform 36
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-36" || true
+
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
-          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
-      - name: Setup Keystores
+      - name: Prepare Keystores & Environment
         run: |
-          # 1. Restore debug.keystore from base64 if present
+          # 1. Restore debug.keystore from base64
           if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
             echo "Restored debug.keystore from debug.keystore.base64"
           fi
+          if [ ! -f "debug.keystore" ]; then
+            echo "Generating fallback debug keystore..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
-          # 2. Restore release keystore if provided in GitHub Secrets
+          # 2. Ensure .env exists for Secrets Gradle Plugin
+          if [ ! -f ".env" ]; then
+            if [ -f ".env.example" ]; then
+              cp .env.example .env
+            else
+              touch .env
+            fi
+            echo "Created .env from .env.example"
+          fi
+
+          # 3. Restore release keystore if provided in GitHub Secrets
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
             echo "Restored release keystore from secrets.KEYSTORE_BASE64"
@@ -67,8 +89,8 @@ jobs:
       - name: Build Debug APK
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == '' }}
         run: |
-          echo "Compiling Debug APK..."
-          gradle assembleDebug --stacktrace
+          echo "Compiling Debug APK with Gradle 9.3.1 and Java 21..."
+          gradle assembleDebug --no-daemon --stacktrace
 
       - name: Build Release APK
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' }}
@@ -78,10 +100,10 @@ jobs:
         run: |
           if [ -f "my-upload-key.jks" ] && [ -n "$STORE_PASSWORD" ]; then
             echo "Compiling Signed Release APK..."
-            gradle assembleRelease --stacktrace
+            gradle assembleRelease --no-daemon --stacktrace
           else
             echo "Release keystore secrets not provided. Falling back to assembleDebug."
-            gradle assembleDebug --stacktrace
+            gradle assembleDebug --no-daemon --stacktrace
           fi
 
       - name: Organize Output Artifacts
@@ -100,7 +122,7 @@ jobs:
             echo "Copied floppa-store-release.apk"
           fi
 
-          # Generate SHA-256 Checksum for FloppaSecurity & VirusTotal verification
+          # Generate SHA-256 Checksums for FloppaSecurity & VirusTotal verification
           cd build-artifacts
           sha256sum *.apk > sha256_checksums.txt
           cat sha256_checksums.txt
