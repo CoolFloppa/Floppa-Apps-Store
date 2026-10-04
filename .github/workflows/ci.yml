@@ -21,30 +21,21 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Configure Android SDK & Accept Licenses
-        run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
-          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-      # Download and install Gradle 9.3.1 CLI directly to guarantee 'gradle' command in PATH
-      - name: Install Gradle 9.3.1
-        run: |
-          wget -q https://services.gradle.org/distributions/gradle-9.3.1-bin.zip
-          sudo unzip -q -d /opt/gradle gradle-9.3.1-bin.zip
-          echo "/opt/gradle/gradle-9.3.1/bin" >> $GITHUB_PATH
+      - name: Setup Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
       - name: Prepare Keystores & Environment
         run: |
           # 1. Restore debug.keystore from base64
           if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
+            base64 -d debug.keystore.base64 > debug.keystore || true
           fi
           if [ ! -f "debug.keystore" ]; then
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
           fi
 
           # 2. Ensure .env exists for Secrets Gradle Plugin
@@ -56,11 +47,8 @@ jobs:
             fi
           fi
 
-      - name: Verify Gradle Version & Environment
-        run: |
-          gradle --version
-          java -version
-
       - name: Compile Applet (assembleDebug)
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8"
         run: |
           gradle assembleDebug --no-daemon --stacktrace

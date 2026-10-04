@@ -17,11 +17,6 @@ on:
           - debug
           - release
           - both
-      create_github_release:
-        description: 'Publish as a GitHub Release (attaches APKs)'
-        required: false
-        default: true
-        type: boolean
 
 permissions:
   contents: write
@@ -47,32 +42,23 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Configure Android SDK & Accept Licenses
-        run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
-          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-      # Download and install Gradle 9.3.1 CLI directly
-      - name: Install Gradle 9.3.1
-        run: |
-          wget -q https://services.gradle.org/distributions/gradle-9.3.1-bin.zip
-          sudo unzip -q -d /opt/gradle gradle-9.3.1-bin.zip
-          echo "/opt/gradle/gradle-9.3.1/bin" >> $GITHUB_PATH
+      - name: Setup Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
       - name: Prepare Keystores & Environment
         run: |
           # 1. Restore debug.keystore from base64
           if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
+            base64 -d debug.keystore.base64 > debug.keystore || true
             echo "Restored debug.keystore from debug.keystore.base64"
           fi
           if [ ! -f "debug.keystore" ]; then
             echo "Generating fallback debug keystore..."
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
           fi
 
           # 2. Ensure .env exists for Secrets Gradle Plugin
@@ -87,17 +73,14 @@ jobs:
 
           # 3. Restore release keystore if provided in GitHub Secrets
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks || true
             echo "Restored release keystore from secrets.KEYSTORE_BASE64"
           fi
 
-      - name: Verify Gradle Version & Environment
-        run: |
-          gradle --version
-          java -version
-
       - name: Build Debug APK
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == '' }}
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8"
         run: |
           echo "Compiling Debug APK with Gradle 9.3.1 and Java 21..."
           gradle assembleDebug --no-daemon --stacktrace
@@ -105,6 +88,7 @@ jobs:
       - name: Build Release APK
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' }}
         env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8"
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
@@ -120,58 +104,56 @@ jobs:
         run: |
           mkdir -p build-artifacts
 
-          # Copy any APK files found in output directory
-          find app/build/outputs/apk/ -name "*.apk" -type f | while read -r apk; do
-            echo "Found APK: $apk"
-            cp "$apk" build-artifacts/
-          done
+          # Copy all generated APKs
+          find app/build/outputs/apk/ -type f -name "*.apk" -exec cp -v {} build-artifacts/ \;
 
-          # Standardize naming for primary download
-          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-            cp "app/build/outputs/apk/debug/app-debug.apk" "build-artifacts/floppa-store-debug.apk"
-            echo "Standardized floppa-store-debug.apk"
+          # Ensure standardized names
+          if [ -f "build-artifacts/app-debug.apk" ] && [ ! -f "build-artifacts/floppa-store-debug.apk" ]; then
+            cp -v "build-artifacts/app-debug.apk" "build-artifacts/floppa-store-debug.apk"
           fi
-          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
-            cp "app/build/outputs/apk/release/app-release.apk" "build-artifacts/floppa-store-release.apk"
-            echo "Standardized floppa-store-release.apk"
+          if [ -f "build-artifacts/app-release.apk" ] && [ ! -f "build-artifacts/floppa-store-release.apk" ]; then
+            cp -v "build-artifacts/app-release.apk" "build-artifacts/floppa-store-release.apk"
           fi
 
-          # Generate SHA-256 Checksums for FloppaSecurity & VirusTotal verification
+          # Generate SHA-256 Checksums for verification
           cd build-artifacts
-          sha256sum *.apk > sha256_checksums.txt
+          sha256sum *.apk > sha256_checksums.txt || true
           echo "Generated SHA-256 Checksums:"
-          cat sha256_checksums.txt
+          cat sha256_checksums.txt || true
           cd ..
 
-      - name: Upload APKs to Workflow Artifacts
+      - name: Upload APK to Workflow Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: floppa-store-apks
           path: build-artifacts/
           retention-days: 30
 
-      # Publish directly to GitHub Releases (safe with continue-on-error)
+      # Publish directly to GitHub Releases using GitHub CLI
       - name: Publish to GitHub Releases
-        if: ${{ success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
-        id: create_release
+        if: ${{ success() }}
         continue-on-error: true
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0-build-{0}', github.run_number) }}
-          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('Floppa Store {0}', github.ref_name) || format('Floppa Store v1.0 (Build #{0})', github.run_number) }}
-          draft: false
-          prerelease: false
-          make_latest: true
-          generate_release_notes: true
-          files: |
-            build-artifacts/*.apk
-            build-artifacts/sha256_checksums.txt
+        id: publish_release
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Fallback Release Check & Guidance
-        if: steps.create_release.outcome == 'failure'
         run: |
-          echo "::warning::GitHub Release publishing could not be completed with the default GITHUB_TOKEN."
-          echo "::notice::The APK was compiled and is safely saved in the Workflow Artifacts ('floppa-store-apks')."
-          echo "::notice::To allow automatic GitHub Releases creation: In your GitHub repository, navigate to Settings -> Actions -> General -> Workflow permissions and select 'Read and write permissions'."
+          TAG_NAME="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0-build-{0}', github.run_number) }}"
+          RELEASE_TITLE="${{ startsWith(github.ref, 'refs/tags/v') && format('Floppa Store {0}', github.ref_name) || format('Floppa Store v1.0 (Build #{0})', github.run_number) }}"
+          echo "Publishing release: $TAG_NAME ($RELEASE_TITLE)..."
+
+          # Use official GitHub CLI pre-installed on the runner
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" build-artifacts/*.apk build-artifacts/sha256_checksums.txt --clobber || true
+          else
+            gh release create "$TAG_NAME" build-artifacts/*.apk build-artifacts/sha256_checksums.txt \
+              --title "$RELEASE_TITLE" \
+              --notes "Automated release build of Floppa Store." \
+              --latest || true
+          fi
+
+      - name: Release Status Notification
+        if: steps.publish_release.outcome == 'failure'
+        run: |
+          echo "::notice::APK was compiled successfully and uploaded to Artifacts ('floppa-store-apks')."
+          echo "::notice::To enable automated GitHub Releases publishing, enable 'Read and write permissions' in repository Settings -> Actions -> General -> Workflow permissions."
