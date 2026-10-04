@@ -1,0 +1,6 @@
+{
+  "name": "Floppa Apps",
+  "description": "Android App Store with FloppaSecurity VirusTotal scanning, seamless APK installation, Floppa Developer Console with analytics, and Floppa AI powered by Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

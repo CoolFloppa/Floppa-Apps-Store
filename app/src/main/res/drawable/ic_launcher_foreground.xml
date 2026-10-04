@@ -1,0 +1,75 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Shield / App Store Crest -->
+    <path
+        android:pathData="M54,20 C68,20 78,24 82,29 C82,55 70,72 54,84 C38,72 26,55 26,29 C30,24 40,20 54,20 Z"
+        android:fillColor="#1E293B"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.5" />
+
+    <!-- Floppa Ear Left with Lynx Tuft -->
+    <path
+        android:pathData="M38,36 L30,22 L36,38 Z"
+        android:fillColor="#C2410C" />
+    <path
+        android:pathData="M30,22 L27,15 L32,20 Z"
+        android:fillColor="#0F172A" />
+
+    <!-- Floppa Ear Right with Lynx Tuft -->
+    <path
+        android:pathData="M70,36 L78,22 L72,38 Z"
+        android:fillColor="#C2410C" />
+    <path
+        android:pathData="M78,22 L81,15 L76,20 Z"
+        android:fillColor="#0F172A" />
+
+    <!-- Floppa Face / Head -->
+    <path
+        android:pathData="M36,36 C36,32 72,32 72,36 C76,46 76,58 70,66 C64,74 44,74 38,66 C32,58 32,46 36,36 Z"
+        android:fillColor="#EA580C" />
+
+    <!-- Face Inner / Cheeks & Muzzle -->
+    <path
+        android:pathData="M44,52 C44,48 64,48 64,52 C64,62 58,68 54,68 C50,68 44,62 44,52 Z"
+        android:fillColor="#FED7AA" />
+
+    <!-- Eyes (Confident & Cool) -->
+    <path
+        android:pathData="M42,46 A3,3 0 1,0 48,46 A3,3 0 1,0 42,46"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M43,45 A1,1 0 1,0 45,45 A1,1 0 1,0 43,45"
+        android:fillColor="#FFFFFF" />
+
+    <path
+        android:pathData="M60,46 A3,3 0 1,0 66,46 A3,3 0 1,0 60,46"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M61,45 A1,1 0 1,0 63,45 A1,1 0 1,0 61,45"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Nose & Mouth -->
+    <path
+        android:pathData="M52,56 L56,56 L54,59 Z"
+        android:fillColor="#9A3412" />
+
+    <!-- Store Security Shield Badge with Download Arrow (FloppaSecurity) -->
+    <path
+        android:pathData="M54,60 L65,65 L65,74 C65,80 60,84 54,87 C48,84 43,80 43,74 L43,65 Z"
+        android:fillColor="#0284C7"
+        android:strokeColor="#BAE6FD"
+        android:strokeWidth="1.2" />
+
+    <!-- Download Arrow in Shield -->
+    <path
+        android:pathData="M54,66 L54,77 M50,73 L54,77 L58,73"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

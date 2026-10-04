@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#0F172A" />
+                <item android:offset="0.4" android:color="#1E1B4B" />
+                <item android:offset="1.0" android:color="#312E81" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Geometric Store Circuit Accent -->
+    <path
+        android:pathData="M18,90 L90,18"
+        android:strokeColor="#1E38BDF8"
+        android:strokeWidth="1.5" />
+    <path
+        android:pathData="M30,96 L96,30"
+        android:strokeColor="#1E6366F1"
+        android:strokeWidth="1.5" />
+</vector>
