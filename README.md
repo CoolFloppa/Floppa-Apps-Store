@@ -22,6 +22,18 @@ This repository includes automated GitHub Actions workflows in `.github/workflow
 
 ---
 
+## ⚙️ Enabling GitHub Releases Publishing
+
+By default, newly created GitHub repositories grant workflows "Read-only" permissions. To allow GitHub Actions to automatically publish releases:
+
+1. Open your repository on GitHub.
+2. Go to **Settings** → **Actions** → **General**.
+3. Scroll down to **Workflow permissions**.
+4. Select **"Read and write permissions"** and click **Save**.
+5. The compiled APK will now automatically be published to the **Releases** section on every build! (The APK is also always available immediately in the **Artifacts** section of each workflow run).
+
+---
+
 ## 🛠️ Local Compilation
 
 To build locally from the terminal:

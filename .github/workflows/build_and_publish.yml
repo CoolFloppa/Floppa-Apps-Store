@@ -31,6 +31,9 @@ jobs:
   build:
     name: Build & Package Android APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
 
     steps:
       - name: Checkout Repository
@@ -147,9 +150,11 @@ jobs:
           path: build-artifacts/
           retention-days: 30
 
-      # Publish directly to GitHub Releases on EVERY successful build
+      # Publish directly to GitHub Releases (safe with continue-on-error)
       - name: Publish to GitHub Releases
         if: ${{ success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
+        id: create_release
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0-build-{0}', github.run_number) }}
@@ -163,3 +168,10 @@ jobs:
             build-artifacts/sha256_checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fallback Release Check & Guidance
+        if: steps.create_release.outcome == 'failure'
+        run: |
+          echo "::warning::GitHub Release publishing could not be completed with the default GITHUB_TOKEN."
+          echo "::notice::The APK was compiled and is safely saved in the Workflow Artifacts ('floppa-store-apks')."
+          echo "::notice::To allow automatic GitHub Releases creation: In your GitHub repository, navigate to Settings -> Actions -> General -> Workflow permissions and select 'Read and write permissions'."
